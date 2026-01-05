@@ -5,9 +5,10 @@ import os
 import numpy as np
 import h5py
 
-from utils.mri_utils import *
-from utils.common_utils import *
-
+from core.utils.mri_utils import *
+from core.utils.common_utils import *
+from core.get_samp import kspace_to_sensmaps_mvue
+import matplotlib.pyplot as plt
 class fastMRIData_DIP_multicoil(Dataset):
     def __init__(self, args):
 
@@ -18,7 +19,7 @@ class fastMRIData_DIP_multicoil(Dataset):
         for i in range(2): #(len(files)):
             #print(files[i])
             try:
-              f = h5py.File(args.folder_path + files[i], 'r')
+              f = h5py.File(os.path.join(args.folder_path, files[i]), 'r')
             except:
               print(f"Error: failed to read {files[i]}. Skipped!")
               continue
@@ -29,11 +30,13 @@ class fastMRIData_DIP_multicoil(Dataset):
             kdata = np.stack((slice_ksp.real, slice_ksp.imag), axis=-1)
           #  csm = f["csm"][:] if 'csm' in f.keys() else torch.ones([slice_ksp.shape[0]*2] + list(slice_ksp.shape[-2:]))
             if args.use_csm:
-               csmfile = f"{args.csm_folder_path}/csm_{files[i]}"
-               cf = h5py.File(csmfile, 'r')
-               cr, ci = cf[f"csm{slicenu}_r"][:], cf[f"csm{slicenu}_i"][:]
-               csm = np.stack((cr, ci), axis=-1) # (coils, x, y, 2)
-               print(f"loaded csm file {csmfile}: {csm.shape}")
+                print("Estimating CSM using BART...")
+                # slice_ksp is (Coils, H, W) complex
+                _, pred_csm = kspace_to_sensmaps_mvue(slice_ksp)
+                # pred_csm is (Coils, H, W) complex
+                # We need (Coils, H, W, 2)
+                csm = np.stack((pred_csm.real, pred_csm.imag), axis=-1)
+                print(f"Estimated csm: {csm.shape}")
             else:
                csm = torch.ones([slice_ksp.shape[0]*2] + list(slice_ksp.shape[-2:]))
 
@@ -46,6 +49,7 @@ class fastMRIData_DIP_multicoil(Dataset):
             undersampled_recon, input_images = self.simple_recon(masked_kspace)
 
             self.samples.append({
+                'pred_csm':pred_csm,
                 'slice_ksp': masked_kspace,
                 'orig': orig,
                 'csm' : csm,

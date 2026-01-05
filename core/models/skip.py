@@ -2,10 +2,10 @@ import torch
 import torch.nn as nn
 from .common import *
 from deepsplines.ds_modules import dsnn
-from .helper_shi import *
+#from .helper_shi import *
 import antialiased_cnns
-from models.resnet import ResNet
-from unet3d import UNet3D, ResidualUNetSE3D
+from core.models.resnet import ResNet
+#from unet3d import UNet3D, ResidualUNetSE3D
 
 def DIP(
         num_input_channels=2, num_output_channels=3,

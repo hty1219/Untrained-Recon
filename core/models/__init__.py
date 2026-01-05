@@ -3,17 +3,17 @@ import torch
 
 def getModel(args):
     if args.model_type == 'ConvDecoder':
-        from models.light_cnn import ConvDecoder
+        from core.models.light_cnn import ConvDecoder
         model = ConvDecoder(args, args.num_layers, args.dim, args.out_chns, args.out_size,
                                 args.in_size, args.act_func, args.upsample_mode, args.norm_func, args.need_dropout,args.need_sigmoid)
 
     elif args.model_type == 'ConvDecoder_LPF':
-        from models.ConvDecoder import ConvDecoder
+        from core.models.ConvDecoder import ConvDecoder
         model = ConvDecoder(args.num_layers, args.dim, args.out_chns, args.out_size,
                                 args.in_size, args.act_func, args.upsample_mode, args.norm_func, args.need_dropout,args.need_sigmoid)
 
     elif args.model_type == 'ConvDecoder_ours':
-       from models.light_cnn import ConvDecoder_improved
+       from core.models.light_cnn import ConvDecoder_improved
        model = ConvDecoder_improved(args.num_layers, args.dim, args.out_chns, args.out_size,
                                 args.in_size, args.act_func, args.upsample_mode, args.norm_func, args.need_dropout,args.need_sigmoid)
 
@@ -22,11 +22,11 @@ def getModel(args):
         model = get_net()
 
     elif args.model_type == 'Decoder_Shi':
-        from models.decoder_shi import decoder
+        from core.models.decoder_shi import decoder
         model = decoder(args.dim, need_sigmoid=args.need_sigmoid)
 
     elif args.model_type == 'DIP_2': # the DIP setting in ConvDecoder Paper
-        from models.skip import skip
+        from core.models.skip import skip
         num_channels = 256
         model = skip(args.in_size,args.input_dim, args.out_chns, 
            num_channels_down = [num_channels] * 8,
@@ -37,7 +37,7 @@ def getModel(args):
            need_sigmoid=False, need_bias=True, pad='zero', act_fun='ReLU')
 
     elif args.model_type == 'DIP_2_scaled': # the DIP in ConvDecoder Paper but with customized scales
-        from models.skip import skip
+        from core.models.skip import skip
         num_channels = args.dim
         model = skip(args.in_size,args.input_dim, args.out_chns, 
            num_channels_down = [num_channels] * args.num_scales,
@@ -48,7 +48,7 @@ def getModel(args):
            need_sigmoid=args.need_sigmoid, need_bias=args.need_bias, lipschitz_constant=args.Lipschitz_constant, lipschitz_reg=args.Lipschitz_reg, norm_method=args.weight_norm_method, pad=args.pad, act_fun=args.act_func, need_dropout=args.need_dropout, need_tanh=args.need_tanh)        
 
     elif args.model_type == 'DIP_hourglass':
-        from models.skip import skip_hourglass
+        from core.models.skip import skip_hourglass
         num_channels = args.dim
         model = skip_hourglass(args.in_size,args.input_dim, args.out_chns, 
            num_channels_down = [16, 32, 64, 128, 128, 128][:args.num_scales],
@@ -59,18 +59,18 @@ def getModel(args):
            need_sigmoid=args.need_sigmoid, need_bias=args.need_bias, lipschitz_constant=args.Lipschitz_constant, lipschitz_reg=args.Lipschitz_reg, norm_method=args.weight_norm_method, pad=args.pad, act_fun=args.act_func, need_dropout=args.need_dropout, need_tanh=args.need_tanh) 
 
     elif args.model_type == 'UNet':
-        from models.unet import UNet
+        from core.models.unet import UNet
         model = UNet(num_input_channels=args.input_dim, num_output_channels=args.out_chns, 
                    feature_scale=8, more_layers=1, 
                    concat_x=False, upsample_mode='deconv', 
                    pad='zero', norm_layer=torch.nn.InstanceNorm2d, need_sigmoid=True, need_bias=True)
 
     elif args.model_type == 'ResNet':
-        from models.resnet import ResNet
+        from core.models.resnet import ResNet
         model = ResNet(args.input_dim, args.out_chns, args.num_res_blocks, args.dim, need_sigmoid=True, act_fun=args.act_func)
 
     elif args.model_type == 'DIP_svd': # SVD decomposed CNN
-        from models.skip import skip_SVD
+        from core.models.skip import skip_SVD
         num_channels = args.dim
         model = skip_SVD(args.in_size,args.input_dim, args.out_chns, 
            num_channels_down = [num_channels] * args.num_scales,
@@ -82,19 +82,19 @@ def getModel(args):
 
 
     elif args.model_type == 'UniNet':
-        from models.skip import UniNet
+        from core.models.skip import UniNet
         model = UniNet(args)
 
     elif args.model_type == 'UniResNet':
-        from models.skip import UniResNet
+        from core.models.skip import UniResNet
         model = UniResNet(args)
 
     elif args.model_type == 'UniNet3D':
-        from models.skip import UniNet3D
+        from core.models.skip import UniNet3D
         model = UniNet3D(args)
 
     elif args.model_type == 'UNet3D':
-        from models.skip import UNet3D
+        from core.models.skip import UNet3D
         model = UNet3D(args)
 
     elif args.model_type == 'complex_UniNet':
@@ -154,7 +154,7 @@ def getModel(args):
            need_sigmoid=args.need_sigmoid, need_bias=True, lipschitz_constant=args.Lipschitz_constant, lipschitz_reg=args.Lipschitz_reg, pad=args.pad, act_fun='DeepSpline')
       
     elif args.model_type == 'DIP_scaled_transposed': # the DIP in ConvDecoder Paper but with customized scales
-        from models.skip import transposed_skip
+        from core.models.skip import transposed_skip
         num_channels = args.dim
         model = transposed_skip(args.in_size,num_channels, args.out_chns, 
            num_channels_down = [num_channels] * args.num_scales,
@@ -165,7 +165,7 @@ def getModel(args):
            need_sigmoid=args.need_sigmoid, need_bias=True, pad=args.pad, act_fun=args.act_func)  
 
     elif args.model_type == 'DIP_LPF':
-        from models.skip import skip_lpf
+        from core.models.skip import skip_lpf
         num_channels = args.dim
         model = skip_lpf(args.in_size,args.input_dim, args.out_chns, 
            num_channels_down = [num_channels] * args.num_scales,
@@ -176,7 +176,7 @@ def getModel(args):
            need_sigmoid=args.need_sigmoid, need_bias=True, lipschitz_constant=args.Lipschitz_constant, lipschitz_reg=args.Lipschitz_reg, pad=args.pad, act_fun=args.act_func, need_dropout=args.need_dropout, need_tanh=args.need_tanh)
 
     elif args.model_type == 'DIP_gaussian':
-        from models.skip import gaussian_skip
+        from core.models.skip import gaussian_skip
         num_channels = args.dim
         model = gaussian_skip(args.in_size,args.input_dim, args.out_chns, 
            num_channels_down = [num_channels] * args.num_scales,
@@ -187,7 +187,7 @@ def getModel(args):
            need_sigmoid=args.need_sigmoid, need_bias=True, lipschitz_constant=args.Lipschitz_constant, lipschitz_reg=args.Lipschitz_reg, pad=args.pad, act_fun=args.act_func, need_dropout=args.need_dropout, need_tanh=args.need_tanh, gaussian_up_ks=args.gaussian_up_ks, gaussian_up_sigma=args.gaussian_up_sigma)
 
     elif args.model_type == 'DIP_kaiser':
-        from models.skip import kaiser_skip
+        from core.models.skip import kaiser_skip
         num_channels = args.dim
         model = kaiser_skip(args.in_size,args.input_dim, args.out_chns, 
            num_channels_down = [num_channels] * args.num_scales,

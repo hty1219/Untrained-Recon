@@ -6,7 +6,7 @@ import numpy as np
 from .common import *
 
 sys.path.append('../')
-from pruning.DAM import * 
+from core.pruning.DAM import *
 
 def add_module(self, module):
     self.add_module(str(len(self) + 1), module)

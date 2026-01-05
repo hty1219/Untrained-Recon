@@ -19,10 +19,8 @@ import torch.optim
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
 from pytorch_model_summary import summary
-
 from models import getModel
 from datasets import getDataset
-import configs as cfg
 from fit_mri import *
 from visualize import *
 from utils import getForwardm
@@ -41,7 +39,47 @@ dtype = torch.cuda.FloatTensor
 #print("num GPUs", torch.cuda.device_count())
 #gpu_id = get_vacant_gpu()
 #torch.cuda.set_device(gpu_id)
+import os
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["OMP_NUM_THREADS"] = "1"
+vis_save_dir = '/data0/tianyu/model_export/rep/mri_knee/samp_mask'
+os.makedirs(vis_save_dir, exist_ok=True)
 
+
+def save_multicoil_vis(tensor_data, name_suffix, is_kspace=False, filename='temp'):
+    if tensor_data is None: return
+    # 转换为 numpy
+    data = tensor_data.detach().cpu().numpy()
+
+    # 处理 Batch 维度 (B, ...) -> (...)
+    if data.shape[0] == 1: data = data[0]
+
+    # 处理复数 (..., 2) -> (...) complex
+    if data.shape[-1] == 2:
+        data = data[..., 0] + 1j * data[..., 1]
+
+    # 取模
+    data_mag = np.abs(data)
+    if is_kspace:
+        data_mag = np.log(data_mag + 1e-9)  # K空间取对数显示
+
+    n_coils = data_mag.shape[0]
+    n_cols = 5
+    n_rows = int(np.ceil(n_coils / n_cols))
+
+    plt.figure(figsize=(20, 4 * n_rows))
+    for i in range(n_coils):
+        plt.subplot(n_rows, n_cols, i + 1)
+        plt.imshow(data_mag[i], cmap='gray')
+        plt.title(f'Coil {i}')
+        plt.axis('off')
+
+    save_path = os.path.join(vis_save_dir, f'{filename}_{name_suffix}.png')
+    plt.tight_layout()
+    plt.savefig(save_path)
+    plt.close()
+    print(f"Saved visualization to {save_path}")
 
 def main(args):
 
@@ -68,6 +106,7 @@ def main(args):
        orig = sample['orig'][0].data.cpu().numpy()
        slice_ksp_torchtensor = sample['slice_ksp_torchtensor'].type(dtype)
        csm = sample['csm'].type(dtype) if args.use_csm else None
+       pred_csm = sample['pred_csm'].type(dtype) if args.use_csm else None
        undersampled_recon = sample['undersampled_recon'][0].data.cpu().numpy()
        input_imgs = sample['input_images'] if args.noise_method == 'zero-filled' else None 
        mask1d = sample['mask1d'].type(dtype)
@@ -75,7 +114,8 @@ def main(args):
        filename_full = ' '.join(map(str, sample['filename']))
        filename = filename_full.split(".")[0]
        print(filename_full)
-     
+       save_multicoil_vis(masked_kspace, 'masked_kspace', is_kspace=True, filename=filename)
+       save_multicoil_vis(pred_csm, 'pred_csm', is_kspace=False,filename=filename)
        if orig.shape[-2:] != (320,320):
          continue
 
@@ -167,7 +207,7 @@ def main(args):
        save_scores(args, info)
 
        if rec2_available:
-          info2 = {'noisy_target': undersampled_recon, 'rec': rec, 'orig': orig, 'p_score': metrics2['psnr'], 's_score': metrics2['ssim'],'noisy_p_score': metrics_noisy['psnr'],
+          info2 = {'time': ((time.time()-start)/60),'noisy_target': undersampled_recon, 'rec': rec, 'orig': orig, 'p_score': metrics2['psnr'], 's_score': metrics2['ssim'],'noisy_p_score': metrics_noisy['psnr'],
                'noisy_s_score': metrics_noisy['ssim'],'filename': filename_full, 'savename': (args.exp_name + '/pruning_results')}
           visualize(info2)
           save_scores(args, info2)
@@ -210,11 +250,11 @@ if __name__ == '__main__':
 
     parser.add_argument('--exp_name', default='saves/')
     parser.add_argument('--special', default=None, type=str)
-    parser.add_argument('--folder_path', default='/shenlab/lab_stor/yilinliu/multicoil_val/')
+    parser.add_argument('--folder_path', default='/data0/shanghong/data/fastmri_knee_mc/multicoil_val0')
     parser.add_argument('--gt_mask_path', default='/shenlab/lab_stor/zhenghan/data/MRF/DataNewDictionary/20180206data/180131_1/53', type=str, help='for mrf')
     parser.add_argument('--dataset', default=None)
     parser.add_argument('--save_path', default=None, type=str)
-    parser.add_argument('--save_folder', default='/mnt/yaplab/data/yilinliu', type=str)
+    parser.add_argument('--save_folder', default='/data0/tianyu/model_export/rep', type=str)
     parser.add_argument('--log_filename', default='', type=str)
     parser.add_argument('--csv_filename', default='', type=str)
     parser.add_argument('--prepruning', default=None, type=str, help='avg | multi | none')
@@ -226,7 +266,7 @@ if __name__ == '__main__':
 
     # mri data related
     parser.add_argument('--mri_mask_type', default='random', type=str)
-    parser.add_argument('--use_csm', default=False, type=str2bool)
+    parser.add_argument('--use_csm', default=True, type=str2bool)
     parser.add_argument('--csm_folder_path', default='/shenlab/lab_stor/yl2/knee_csm', type=str)
     parser.add_argument('--window_size', default=100, type=str2int, help='to monitor the average self-validation error')
     parser.add_argument('--self_val_percent', default=0, type=str2float, help='percentage of measurements used for self-validation early stopping')
@@ -270,14 +310,14 @@ if __name__ == '__main__':
     # model related
     parser.add_argument('--reg_noise_std', default=0, type=str2float, help='add noise at each iteration')
     parser.add_argument('--progressive', default=False, type=str2bool, help='whether the image is gradually upsampled')
-    parser.add_argument('--model_type', default='ConvDecoder', type=str)
+    parser.add_argument('--model_type', default='DIP_LPF', type=str)
     parser.add_argument('--patch_size', default=16, type=str2int,
                         help='dividing images into tokens')
-    parser.add_argument('--num_layers', default=7, type=str2int,
+    parser.add_argument('--num_layers', default=8, type=str2int,
                         help='default:7 in ConvDecoder')
     parser.add_argument('--out_chns', default=3, type=str2int)
     parser.add_argument('--input_dim', default=32, type=str2int)
-    parser.add_argument('--dim', default=256, type=str2int,
+    parser.add_argument('--dim', default=64, type=str2int,
                         help='number of channels per layer except for the last one')
     parser.add_argument('--in_size', default=[8, 4], nargs='+', type=int)
     parser.add_argument('--out_size', default=[512, 512], nargs='+', type=int)
@@ -299,13 +339,13 @@ if __name__ == '__main__':
 
     # optimization related
     parser.add_argument('--antialiased_down', default=False, type=str2bool)
-    parser.add_argument('--kaiser_up_ks', default=[3,3], nargs='+', type=int)
-    parser.add_argument('--kaiser_up_beta', default=[0.1,0.1], nargs='+', type=float)
+    parser.add_argument('--kaiser_up_ks', default=[29,29], nargs='+', type=int)
+    parser.add_argument('--kaiser_up_beta', default=[10,10], nargs='+', type=float)
     parser.add_argument('--gaussian_up_ks', default=[3,3], nargs='+', type=int)
     parser.add_argument('--gaussian_up_sigma', default=[0.1,0.1], nargs='+', type=float)
     parser.add_argument('--Jacob_spec_norm', default=0, type=str2float)
-    parser.add_argument('--gaussian_blur_ks', default=3, type=str2int)
-    parser.add_argument('--gaussian_blur_sigma', default=3, type=str2float)
+    parser.add_argument('--gaussian_blur_ks', default=5, type=str2int)
+    parser.add_argument('--gaussian_blur_sigma', default=1, type=str2float)
     parser.add_argument('--use_freq_mask', default='False', type=str2bool)
     parser.add_argument('--freq_mask_mode', default='ascending', type=str)
     parser.add_argument('--input_dropout', default=0, type=str2float)
@@ -317,7 +357,7 @@ if __name__ == '__main__':
     parser.add_argument('--jacobian_lbda', default=0, type=str2float, help='weight for jacobian regularizer. default:0.001')
     parser.add_argument('--jacobian_eval', default=False, type=str2bool, help='evaluate the 2-norm of the jacobian matrix')
     parser.add_argument('--Lipschitz_constant', default=0, type=str2float, help='the constant c')
-    parser.add_argument('--Lipschitz_reg', default=0, type=str2float, help='whether to learn the lipschitz constant')
+    parser.add_argument('--Lipschitz_reg', default=1, type=str2float, help='whether to learn the lipschitz constant')
     parser.add_argument('--weight_norm_method', default='spectral', type=str, help='type for weight normalization (Lipscthiz)')
     parser.add_argument('--deepspline_lbda', default=0, type=str2float, help='to regulate the strength of deepspline activation functions')
     parser.add_argument('--deepspline_lipschitz', default=False, type=str2bool, help='whether to add regularization loss on deepspline')
@@ -332,7 +372,7 @@ if __name__ == '__main__':
     parser.add_argument('--print_all_images_forward', default=False, type=str2bool, help='print all images during the forward process. Useful for inpainting.')
     parser.add_argument('--iters_print_acc', default=100, type=str2int)
     parser.add_argument('--iters_cal_acc', default=1, type=str2int)
-    parser.add_argument('--num_iters', default=2500, type=str2int)
+    parser.add_argument('--num_iters', default=50, type=str2int)
     parser.add_argument('--reg_type', default=0, type=str2int,
                         help='regularization type: 0:None 1:L1 2:Hoyer 3:HS 4:Transformed L1')
     parser.add_argument('--singular_reg_type', default=0, type=str2int,

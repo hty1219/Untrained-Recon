@@ -229,7 +229,7 @@ def fit(args,
                         elif len(param.shape)==2:
                             reg_struc += ( (torch.sum(torch.sqrt(torch.sum(param**2,0)))**2) + (torch.sum(torch.sqrt(torch.sum(param**2,1)))**2) )/torch.sum(param**2)
                     else:
-                        raise NotImplementedError('Regularizer [%s] is not implemented for structural sparsity' % reg_type)
+                        raise NotImplementedError('Regularizer [%s] is not implemented for structural sparsity' % args.reg_type)
 
            if args.verbose:
               print("reg_loss: ", args.decay[0] * reg_elem + args.decay[1] * reg_struc)    

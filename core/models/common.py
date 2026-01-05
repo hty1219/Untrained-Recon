@@ -10,8 +10,7 @@ from .fouriDown import FouriDown
 from torch.nn import Parameter
 import torch.nn.utils.spectral_norm as sp_norm
 from deepsplines.ds_modules import dsnn
-import ptwt
-import pywt
+
 
 def add_module(self, module):
     self.add_module(str(len(self) + 1), module)
@@ -332,8 +331,8 @@ class weight_normalization(nn.Module):
            c = getattr(self.module, self.name + "_c")
            c = nn.functional.softplus(c)
            scale = torch.max(torch.ones_like(scale),scale/c)
-           print(f">>>>>>>>>>> Current max scale: {scale}")
-           print(f">>>>>>>>>>> c: {c}")
+           #print(f">>>>>>>>>>> Current max scale: {scale}")
+           #print(f">>>>>>>>>>> c: {c}")
         setattr(self.module, self.name, w / scale.expand_as(w))
 
     def _made_params(self):

@@ -38,7 +38,7 @@ def visualize(info):
   # plt.show()
 
 def plot_metrics_torch(ckp_path, savepath):
-   ckp = torch.load(ckp_path)
+   ckp = torch.load(ckp_path, weights_only=False)
    psnr = ckp['PSNR_list']
    ssim = ckp['SSIM_list']
    loss = ckp['Loss_list']
