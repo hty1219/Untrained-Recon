@@ -43,7 +43,7 @@ import os
 os.environ["OPENBLAS_NUM_THREADS"] = "1"
 os.environ["MKL_NUM_THREADS"] = "1"
 os.environ["OMP_NUM_THREADS"] = "1"
-vis_save_dir = '/data0/tianyu/model_export/rep/mri_knee/samp_mask'
+vis_save_dir = './samp_mask'
 os.makedirs(vis_save_dir, exist_ok=True)
 
 
